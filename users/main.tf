@@ -1,29 +1,31 @@
-resource aws_iam_user user {
-  user_name = var.user_name
+provider aws {
+  region = "eu-west-2"
 }
-resource aws_iam_group admin_group {
-  group_name = "admin"
-}
-resource "aws_iam_group_policy" "admin_policy" {
-  name  = "admin_policy"
-  group = "${aws_iam_group.admin_group.id}"
 
+# Groups
+module group_admin {
+  source = "../modules/groups"
+  name   = "admin"
   policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Action": [
-        "ec2:Describe*"
-      ],
       "Effect": "Allow",
+      "Action": "*",
       "Resource": "*"
     }
   ]
 }
 EOF
 }
-resource aws_iam_access_key user_access_key {
-  user    = aws_iam_user.user.name
-  pgp_key = "keybase:benlu"
+
+# Users
+module "user_ben" {
+  source       = "../modules/users"
+  user_name    = "benlu"
+  keybase_name = "benlu"
+  groups       = [module.group_admin.name]
 }
+
+

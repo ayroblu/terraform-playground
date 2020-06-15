@@ -1,3 +1,8 @@
+provider "aws" {
+  region = "eu-west-2"
+}
+
+# https://medium.com/@jessgreb01/how-to-terraform-locking-state-in-s3-2dc9a5665cb6
 resource aws_s3_bucket backend {
   bucket = "terraform-state-nsd9d3n"
   acl    = "private"
@@ -5,7 +10,29 @@ resource aws_s3_bucket backend {
   versioning {
     enabled = true
   }
-  tags {
-    Name = "backend bucket"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  tags = {
+    Name = "S3 Remote Terraform State Store"
+  }
+}
+
+# 25GB, 25 read, 25 write for free tier
+resource aws_dynamodb_table terraform-state-lock {
+  name           = "terraform-state-lock"
+  hash_key       = "LockID"
+  read_capacity  = 20
+  write_capacity = 20
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  tags = {
+    Name = "DynamoDB Terraform State Lock Table"
   }
 }
