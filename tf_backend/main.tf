@@ -1,7 +1,11 @@
-terraform {
-  backend "s3" {
-    bucket = "terraform-state-nsd9d3n"
-    key    = "terraform-course/demo4"
-    region = "eu-west-2"
+resource aws_s3_bucket backend {
+  bucket = "terraform-state-nsd9d3n"
+  acl    = "private"
+
+  versioning {
+    enabled = true
+  }
+  tags {
+    Name = "backend bucket"
   }
 }
