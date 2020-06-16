@@ -1,13 +1,19 @@
 resource aws_iam_user user {
-  name = var.user_name
+  count = length(var.user_details)
+
+  name = var.user_details[count.index].user_name
 }
 resource aws_iam_access_key user {
-  user    = aws_iam_user.user.name
-  pgp_key = "keybase:${var.keybase_name}"
+  count = length(var.user_details)
+
+  user    = aws_iam_user.user[count.index].name
+  pgp_key = "keybase:${var.user_details[count.index].keybase_name}"
 }
 
 resource aws_iam_user_group_membership user {
-  user = aws_iam_user.user.name
+  count = length(var.user_details)
 
-  groups = var.groups
+  user = aws_iam_user.user[count.index].name
+
+  groups = var.user_details[count.index].groups
 }

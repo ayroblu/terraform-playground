@@ -21,11 +21,12 @@ EOF
 }
 
 # Users
-module "user_ben" {
-  source       = "../modules/users"
-  user_name    = "benlu"
-  keybase_name = "benlu"
-  groups       = [module.group_admin.name]
+module "users" {
+  source = "../modules/users"
+  user_details = list({
+    user_name    = "benlu"
+    keybase_name = "benlu"
+    groups       = [module.group_admin.name]
+  })
 }
-
 

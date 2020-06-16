@@ -1,9 +1,3 @@
-variable user_name {
-  type = string
-}
-variable groups {
-  type = list(string)
-}
-variable keybase_name {
-  type = string
+variable user_details {
+  type = list(object({ user_name = string, groups = list(string), keybase_name = string }))
 }
