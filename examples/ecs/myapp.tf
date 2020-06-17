@@ -1,4 +1,7 @@
-# app
+variable port {
+  type    = number
+  default = 8080
+}
 
 resource "aws_ecs_task_definition" "myapp-task-definition" {
   family                = "myapp"
@@ -10,12 +13,10 @@ resource "aws_ecs_task_definition" "myapp-task-definition" {
     "name": "myapp",
     "cpu": 256,
     "image": "k8s.gcr.io/echoserver:1.4",
-    "workingDirectory": "/app",
-    "command": ["npm", "start"],
+    "networkMode": "awsvpc",
     "portMappings": [
         {
-            "containerPort": 3000,
-            "hostPort": 3000
+            "containerPort": ${var.port}
         }
     ]
   }
@@ -24,52 +25,81 @@ resource "aws_ecs_task_definition" "myapp-task-definition" {
 }
 
 resource "aws_ecs_service" "myapp-service" {
-  count           = 0
   name            = "myapp"
   cluster         = aws_ecs_cluster.example-cluster.id
   task_definition = aws_ecs_task_definition.myapp-task-definition.arn
   desired_count   = 1
   iam_role        = aws_iam_role.ecs-service-role.arn
-  depends_on      = [aws_iam_policy_attachment.ecs-service-attach1]
+  depends_on = [
+    aws_iam_policy_attachment.ecs-service-attach1,
+    aws_lb_target_group.myapp
+  ]
 
   load_balancer {
-    elb_name       = aws_elb.myapp-elb.name
-    container_name = "myapp"
-    container_port = 3000
+    target_group_arn = aws_lb_target_group.myapp.arn
+    container_name   = aws_ecs_task_definition.myapp-task-definition.family
+    container_port   = var.port
   }
+
   lifecycle {
     ignore_changes = [task_definition]
   }
 }
 
-# load balancer
-resource "aws_elb" "myapp-elb" {
-  name = "myapp-elb"
+resource aws_lb public {
+  name = "public"
 
-  listener {
-    instance_port     = 3000
-    instance_protocol = "http"
-    lb_port           = 80
-    lb_protocol       = "http"
-  }
+  idle_timeout       = 60
+  load_balancer_type = "application"
+  internal           = false
+  enable_http2       = true
 
-  health_check {
-    healthy_threshold   = 3
-    unhealthy_threshold = 3
-    timeout             = 30
-    target              = "HTTP:3000/"
-    interval            = 60
-  }
-
-  cross_zone_load_balancing   = true
-  idle_timeout                = 400
-  connection_draining         = true
-  connection_draining_timeout = 400
-
+  security_groups = [aws_security_group.lb.id]
   subnets         = [aws_subnet.main-public-1.id, aws_subnet.main-public-2.id]
-  security_groups = [aws_security_group.myapp-elb-securitygroup.id]
+}
 
-  tags = {
-    Name = "myapp-elb"
+
+# Load Balancer
+# The load balancer is comprised of two listeners (one for HTTP, one for HTTPS).
+# The listeners are linked to target groups.  The target groups are linked to
+# the ECS containers themselves within the ECS terraform configuration.
+resource aws_lb_listener http_80 {
+  load_balancer_arn = aws_lb.public.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    target_group_arn = aws_lb_target_group.myapp.arn
+    type             = "forward"
   }
 }
+
+#resource aws_lb_listener https_443 {
+#  load_balancer_arn = aws_lb.public.arn
+#  port              = 443
+#  protocol          = "HTTPS"
+#  ssl_policy        = "ELBSecurityPolicy-2016-08"
+#  #certificate_arn   = var.ssl_arn
+#
+#  default_action {
+#    target_group_arn = aws_lb_target_group.ecs_bot_app_target.arn
+#    type             = "forward"
+#  }
+#}
+
+resource aws_lb_target_group myapp {
+  name = "myapp-lb-target"
+
+  vpc_id   = aws_vpc.main.id
+  port     = var.port
+  protocol = "HTTP"
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 5
+    path                = "/health"
+    interval            = 30
+  }
+}
+
