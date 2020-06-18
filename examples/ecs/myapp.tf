@@ -28,7 +28,7 @@ resource "aws_ecs_service" "myapp-service" {
   name            = "myapp"
   cluster         = aws_ecs_cluster.example-cluster.id
   task_definition = aws_ecs_task_definition.myapp-task-definition.arn
-  desired_count   = 1
+  desired_count   = 3
   iam_role        = aws_iam_role.ecs-service-role.arn
   depends_on = [
     aws_iam_policy_attachment.ecs-service-attach1,
@@ -93,6 +93,9 @@ resource aws_lb_target_group myapp {
   vpc_id   = aws_vpc.main.id
   port     = var.port
   protocol = "HTTP"
+  depends_on = [
+    aws_lb.public
+  ]
 
   health_check {
     healthy_threshold   = 2
