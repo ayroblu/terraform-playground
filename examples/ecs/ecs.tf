@@ -30,7 +30,7 @@ resource aws_autoscaling_group ecs {
   }
 }
 
-resource "aws_autoscaling_policy" "scale_up" {
+resource aws_autoscaling_policy scale_up {
   name                   = "ecs-scaleup"
   scaling_adjustment     = 1
   adjustment_type        = "ChangeInCapacity"
@@ -42,7 +42,7 @@ resource "aws_autoscaling_policy" "scale_up" {
   }
 }
 
-resource "aws_autoscaling_policy" "scale_down" {
+resource aws_autoscaling_policy scale_down {
   name                   = "ecs-scaledown"
   scaling_adjustment     = -1
   adjustment_type        = "ChangeInCapacity"
@@ -54,7 +54,7 @@ resource "aws_autoscaling_policy" "scale_down" {
   }
 }
 
-resource "aws_cloudwatch_metric_alarm" "alarm-cpu-down" {
+resource aws_cloudwatch_metric_alarm alarm-cpu-down {
   alarm_name          = "ecs-cpu-down"
   comparison_operator = "LessThanOrEqualToThreshold"
   evaluation_periods  = "2"
@@ -71,11 +71,12 @@ resource "aws_cloudwatch_metric_alarm" "alarm-cpu-down" {
   alarm_actions     = [aws_autoscaling_policy.scale_down.arn]
 }
 
-resource "aws_cloudwatch_metric_alarm" "alarm-cpu-up" {
+# CPUReservation because under high load, we'll have many containers from the other auto scaling
+resource aws_cloudwatch_metric_alarm alarm-cpu-up {
   alarm_name          = "ecs-cpu-up"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = "2"
-  metric_name         = "CPUUtilization"
+  metric_name         = "CPUReservation"
   namespace           = "AWS/ECS"
   period              = "60"
   statistic           = "Maximum"
@@ -88,7 +89,8 @@ resource "aws_cloudwatch_metric_alarm" "alarm-cpu-up" {
   alarm_actions     = [aws_autoscaling_policy.scale_up.arn]
 }
 
-resource "aws_appautoscaling_target" "ecs_target" {
+# You need this to
+resource aws_appautoscaling_target ecs_target {
   max_capacity       = 10
   min_capacity       = 1
   resource_id        = "service/${aws_ecs_cluster.example-cluster.name}/${aws_ecs_service.myapp-service.name}"
@@ -97,7 +99,7 @@ resource "aws_appautoscaling_target" "ecs_target" {
   service_namespace  = "ecs"
 }
 
-resource "aws_appautoscaling_policy" "ecs_policy" {
+resource aws_appautoscaling_policy ecs_policy {
   name               = "autoscale"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.ecs_target.resource_id
@@ -113,6 +115,4 @@ resource "aws_appautoscaling_policy" "ecs_policy" {
     scale_out_cooldown = 60
   }
 }
-#
-#
 
