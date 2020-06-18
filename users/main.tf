@@ -27,6 +27,10 @@ module "users" {
     user_name    = "benlu"
     keybase_name = "benlu"
     groups       = [module.group_admin.name]
+    }, {
+    user_name    = "ayroblu"
+    keybase_name = "ayroblu"
+    groups       = [module.group_admin.name]
   })
 }
 
