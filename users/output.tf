@@ -12,6 +12,8 @@ $ aws-vault add example
  4. And input (stdin):
 Enter Access Key ID: ${id}
 Enter Secret Access Key: ...secret_access_key...
+ 5. Open the keychain and disable locking (prompts)
+$ open ~/Library/Keychains/aws-vault.keychain-db
 %{endfor}
 EOT
 }
