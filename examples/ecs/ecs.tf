@@ -19,7 +19,7 @@ resource aws_autoscaling_group ecs {
   vpc_zone_identifier       = [aws_subnet.main-public-1.id, aws_subnet.main-public-2.id]
   launch_configuration      = aws_launch_configuration.ecs-example-launchconfig.name
   min_size                  = 1
-  desired_capacity          = 2
+  desired_capacity          = 1
   max_size                  = 10
   health_check_grace_period = 300
 

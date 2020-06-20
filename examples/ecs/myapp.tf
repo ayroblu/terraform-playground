@@ -3,22 +3,60 @@ variable port {
   default = 8080
 }
 
+resource aws_cloudwatch_log_group ecs_myapp {
+  name = "ecs-myapp"
+
+  tags = {
+    Environment = "ecs"
+    Application = "myapp"
+  }
+}
+
+resource "aws_iam_role" "task" {
+  # IAM roles are global, so we need to environment name as well in the name
+  name = "ecs-role-${aws_ecs_cluster.example-cluster.name}-myapp"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2008-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": ["ecs-tasks.amazonaws.com"]
+      },
+      "Effect": "Allow"
+    }
+  ]
+}
+EOF
+}
+
 resource "aws_ecs_task_definition" "myapp-task-definition" {
   family                = "myapp"
+  task_role_arn         = aws_iam_role.task.arn
   container_definitions = <<EOT
 [
   {
     "essential": true,
-    "memory": 256,
     "name": "myapp",
     "cpu": 256,
+    "memory": 256,
     "image": "k8s.gcr.io/echoserver:1.4",
     "networkMode": "awsvpc",
     "portMappings": [
         {
             "containerPort": ${var.port}
         }
-    ]
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "ecs-myapp",
+        "awslogs-region": "eu-west-2",
+        "awslogs-stream-prefix": "myapp"
+      }
+    }
   }
 ]
   EOT
@@ -41,10 +79,11 @@ resource "aws_ecs_service" "myapp-service" {
     container_port   = var.port
   }
 
-  lifecycle {
-    ignore_changes = [task_definition]
-  }
+  #lifecycle {
+  #  ignore_changes = [task_definition]
+  #}
 }
+
 
 resource aws_lb public {
   name = "public"
