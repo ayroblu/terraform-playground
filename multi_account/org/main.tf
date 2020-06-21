@@ -55,11 +55,6 @@ module group_local_admin {
         Effect   = "Allow"
         Action   = "*"
         Resource = "*"
-        #Condition = {
-        #  StringEqualsIfExists = {
-        #    "aws:RequestedRegion" = "eu-west-2"
-        #  }
-        #}
         }, {
         # https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_examples_aws_deny-requested-region.html
         Effect = "Deny"
