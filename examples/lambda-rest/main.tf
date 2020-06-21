@@ -1,3 +1,5 @@
+# So much boilerplate, why not just use
+# https://swizec.com/blog/typescript-serverless-lambda/swizec/9103
 provider aws {
   region = "eu-west-2"
 }
