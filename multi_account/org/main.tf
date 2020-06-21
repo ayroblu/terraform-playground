@@ -44,6 +44,46 @@ module group_admin {
   })
 }
 
+module group_local_admin {
+  source = "../modules/groups"
+  name   = "local_admin"
+  # Maybe should look at https://github.com/flosell/iam-policy-json-to-terraform
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "*"
+        Resource = "*"
+        #Condition = {
+        #  StringEqualsIfExists = {
+        #    "aws:RequestedRegion" = "eu-west-2"
+        #  }
+        #}
+        }, {
+        # https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_examples_aws_deny-requested-region.html
+        Effect = "Deny"
+        # Necessary because global things aren't in eu-west-2
+        NotAction = [
+          "cloudfront:*",
+          "iam:*",
+          "sts:*",
+          "route53:*",
+          "support:*"
+        ],
+        Resource = "*"
+        Condition = {
+          StringNotEquals = {
+            "aws:RequestedRegion" = [
+              "eu-west-2"
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
 module group_dev_rw {
   source = "../modules/groups"
   name   = "dev_rw"
@@ -52,7 +92,7 @@ module group_dev_rw {
     Statement = [{
       Effect   = "Allow"
       Action   = "sts:AssumeRole"
-      Resource = "arn:aws:iam::${aws_organizations_account.test_dev.id}:role/${aws_iam_role.dev_rw.name}"
+      Resource = "arn:aws:iam::${aws_organizations_account.test_dev.id}:role/${module.role_dev_rw.name}"
     }]
   })
 }
@@ -65,7 +105,7 @@ module group_dev_ro {
     Statement = [{
       Effect   = "Allow"
       Action   = "sts:AssumeRole"
-      Resource = "arn:aws:iam::${aws_organizations_account.test_dev.id}:role/${aws_iam_role.dev_ro.name}"
+      Resource = "arn:aws:iam::${aws_organizations_account.test_dev.id}:role/${module.role_dev_ro.name}"
     }]
   })
 }
@@ -80,7 +120,7 @@ module users {
     }, {
     user_name    = "ayroblu"
     keybase_name = "ayroblu"
-    groups       = [module.group_dev_ro.name]
+    groups       = [module.group_local_admin.name]
   })
 }
 
@@ -93,73 +133,53 @@ provider aws {
   }
 }
 
-resource aws_iam_role dev_rw {
-  name = "dev_rw"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = "sts:AssumeRole"
-      Principal = {
-        "AWS" = "arn:aws:iam::${aws_organizations_account.test_ops.id}:root"
-      }
-    }]
-  })
-  provider = aws.dev
-}
+module role_dev_rw {
+  providers = { aws = aws.dev }
 
-resource aws_iam_role_policy dev_rw {
-  name = "dev_rw"
-  role = aws_iam_role.dev_rw.id
-
+  source      = "../modules/env_role"
+  name        = "dev_rw"
+  account_ids = [aws_organizations_account.test_ops.id]
   policy = jsonencode({
     Version : "2012-10-17"
     Statement : [{
       Effect   = "Allow"
       Action   = "*"
       Resource = "*"
+      Condition = {
+        StringEqualsIfExists = {
+          "aws:RequestedRegion" = "eu-west-2"
+        }
+      }
       }, {
       Effect   = "Deny"
       Action   = ["iam:*", "cloudtrail:*", "workspaces:*"]
       Resource = "*"
     }]
   })
-  provider = aws.dev
 }
 
-resource aws_iam_role dev_ro {
-  name = "dev_ro"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = "sts:AssumeRole"
-      Principal = {
-        "AWS" = "arn:aws:iam::${aws_organizations_account.test_ops.id}:root"
-      }
-    }]
-  })
-  provider = aws.dev
-}
+module role_dev_ro {
+  providers = { aws = aws.dev }
 
-resource aws_iam_role_policy dev_ro {
-  name = "dev_ro"
-  role = aws_iam_role.dev_ro.id
-
+  source      = "../modules/env_role"
+  name        = "dev_ro"
+  account_ids = [aws_organizations_account.test_ops.id]
   policy = jsonencode({
     Version : "2012-10-17"
     Statement : [{
       Effect   = "Deny"
       Action   = ["iam:*", "cloudtrail:*", "workspaces:*"]
       Resource = "*"
+      }, {
+      Effect   = "Deny"
+      Action   = "*"
+      Resource = "*"
+      Condition = {
+        StringNotEqualsIfExists = {
+          "aws:RequestedRegion" = "eu-west-2"
+        }
+      }
     }]
   })
-  provider = aws.dev
-}
-
-resource aws_iam_role_policy_attachment dev_ro {
-  role = aws_iam_role.dev_ro.id
-  # Provided by AWS, managed policy
-  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
-  provider   = aws.dev
+  policy_arns = ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
 }
